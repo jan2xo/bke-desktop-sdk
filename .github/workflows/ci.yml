@@ -52,7 +52,7 @@ jobs:
         run: |
           set -euo pipefail
           test -s test-results/test-results.trx
-          grep -q '<UnitTestResult ' test-results/test-results.trx
+          grep -q '<UnitTestResult' test-results/test-results.trx
 
       - name: Pack release package
         run: |
