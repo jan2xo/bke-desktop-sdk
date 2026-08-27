@@ -8,16 +8,39 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-dotnet@v4
-      with: { dotnet-version: '8.0.x' }
-    - run: dotnet restore BKE.Desktop.SDK.sln
-    - run: dotnet build BKE.Desktop.SDK.sln --configuration Release --no-restore
-    - run: dotnet test BKE.Desktop.SDK.sln --configuration Release --no-build
-    - run: dotnet pack src/BKE.Desktop.Client/BKE.Desktop.Client.csproj --configuration Release --no-build --output artifacts
+      with:
+        dotnet-version: 8.0.x
+    - name: Record .NET SDK
+      run: dotnet --info
+    - name: Restore projects
+      run: dotnet restore BKE.Desktop.SDK.sln
+    - name: Build Release
+      run: dotnet build BKE.Desktop.SDK.sln --configuration Release --no-restore --verbosity normal
+    - name: Assert managed assembly
+      shell: bash
+      run: test -f src/BKE.Desktop.Client/bin/Release/net8.0/BKE.Desktop.Client.dll
+    - name: Run tests
+      run: dotnet test tests/BKE.Desktop.Client.Tests/BKE.Desktop.Client.Tests.csproj --configuration Release --no-build --logger "console;verbosity=normal"
+    - name: Pack
+      run: dotnet pack src/BKE.Desktop.Client/BKE.Desktop.Client.csproj --configuration Release --no-build --output artifacts
     - name: Verify package
       shell: bash
       run: |
         set -euo pipefail
-        test -f artifacts/BKE.Desktop.Client.1.0.0.nupkg
-        unzip -l artifacts/BKE.Desktop.Client.1.0.0.nupkg | grep README.md
-        unzip -l artifacts/BKE.Desktop.Client.1.0.0.nupkg | grep BKE.Desktop.Client.dll
-        unzip -p artifacts/BKE.Desktop.Client.1.0.0.nupkg BKE.Desktop.Client.nuspec | grep 1.0.0
+        package=artifacts/BKE.Desktop.Client.1.0.0.nupkg
+        test -f "$package"
+        unzip -l "$package" | grep -F 'lib/net8.0/BKE.Desktop.Client.dll'
+        unzip -l "$package" | grep -F 'README.md'
+        unzip -l "$package" | grep -F 'LICENSE.txt'
+        unzip -p "$package" BKE.Desktop.Client.nuspec > artifacts/package.nuspec
+        grep -F '<id>BKE.Desktop.Client</id>' artifacts/package.nuspec
+        grep -F '<version>1.0.0</version>' artifacts/package.nuspec
+        grep -F 'license type="file">LICENSE.txt' artifacts/package.nuspec
+        grep -F 'readme>README.md' artifacts/package.nuspec
+        grep -F 'repository' artifacts/package.nuspec
+    - name: Upload package artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: BKE.Desktop.Client-1.0.0
+        path: artifacts/BKE.Desktop.Client.1.0.0.nupkg
+        if-no-files-found: error
