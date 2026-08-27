@@ -1,23 +1,87 @@
 name: CI
+
 on:
   push:
   pull_request:
+
+permissions:
+  contents: read
+
 jobs:
   verify:
     runs-on: ubuntu-latest
+    env:
+      SDK_PROJECT: src/BKE.Desktop.Client/BKE.Desktop.Client.csproj
+      TEST_PROJECT: tests/BKE.Desktop.Client.Tests/BKE.Desktop.Client.Tests.csproj
+      PACKAGE_PATH: artifacts/BKE.Desktop.Client.1.0.0.nupkg
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-dotnet@v4
-      with: { dotnet-version: '8.0.x' }
-    - run: dotnet restore BKE.Desktop.SDK.sln
-    - run: dotnet build BKE.Desktop.SDK.sln --configuration Release --no-restore
-    - run: dotnet test BKE.Desktop.SDK.sln --configuration Release --no-build
-    - run: dotnet pack src/BKE.Desktop.Client/BKE.Desktop.Client.csproj --configuration Release --no-build --output artifacts
-    - name: Verify package
-      shell: bash
-      run: |
-        set -euo pipefail
-        test -f artifacts/BKE.Desktop.Client.1.0.0.nupkg
-        unzip -l artifacts/BKE.Desktop.Client.1.0.0.nupkg | grep README.md
-        unzip -l artifacts/BKE.Desktop.Client.1.0.0.nupkg | grep BKE.Desktop.Client.dll
-        unzip -p artifacts/BKE.Desktop.Client.1.0.0.nupkg BKE.Desktop.Client.nuspec | grep 1.0.0
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Record .NET SDK information
+        run: dotnet --info
+
+      - name: Restore SDK and test projects
+        run: |
+          dotnet restore "$SDK_PROJECT"
+          dotnet restore "$TEST_PROJECT"
+
+      - name: Build SDK and tests
+        run: |
+          dotnet build "$SDK_PROJECT" --configuration Release --no-restore
+          dotnet build "$TEST_PROJECT" --configuration Release --no-restore
+
+      - name: Verify Release assembly output
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f src/BKE.Desktop.Client/bin/Release/net8.0/BKE.Desktop.Client.dll
+
+      - name: Run tests
+        run: |
+          mkdir -p test-results
+          dotnet test "$TEST_PROJECT" --configuration Release --no-build --logger "trx;LogFileName=test-results.trx"
+
+      - name: Assert tests executed
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s test-results/test-results.trx
+          grep -q '<UnitTestResult ' test-results/test-results.trx
+
+      - name: Pack release package
+        run: |
+          rm -rf artifacts
+          mkdir -p artifacts
+          dotnet pack "$SDK_PROJECT" --configuration Release --no-build --output artifacts
+
+      - name: Verify package contents and metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f "$PACKAGE_PATH"
+          mapfile -t packages < <(find artifacts -maxdepth 1 -type f -name '*.nupkg' -print)
+          test "${#packages[@]}" -eq 1
+
+          unzip -Z1 "$PACKAGE_PATH" | grep -Fx 'README.md'
+          unzip -Z1 "$PACKAGE_PATH" | grep -Fx 'lib/net8.0/BKE.Desktop.Client.dll'
+          unzip -Z1 "$PACKAGE_PATH" | grep -Fx 'BKE.Desktop.Client.nuspec'
+
+          unzip -p "$PACKAGE_PATH" BKE.Desktop.Client.nuspec > package.nuspec
+          grep -q '<id>BKE.Desktop.Client</id>' package.nuspec
+          grep -q '<version>1.0.0</version>' package.nuspec
+          grep -q '<readme>README.md</readme>' package.nuspec
+
+      - name: Upload package and test evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: BKE.Desktop.Client-1.0.0
+          path: |
+            artifacts/BKE.Desktop.Client.1.0.0.nupkg
+            test-results/test-results.trx
+          if-no-files-found: error
