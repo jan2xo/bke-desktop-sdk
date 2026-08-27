@@ -1,34 +1,78 @@
 # BKE Desktop SDK
 
-BKE.Desktop.Client is a reusable .NET 8 client for connecting BKE desktop applications to the installed BKE environment through BKE Licensing Agent.
+## What It Is
 
-It is not a licensing authority, entitlement engine, updater, trusted-key holder, privileged executor, or source of commercial policy. Decisions remain with Licensing Agent and BKE Digital Solutions.
+BKE.Desktop.Client is a reusable .NET 8 client for connecting BKE desktop applications to the installed BKE Licensing Agent.
 
-Architecture: Product -> BKE.Desktop.Client -> Licensing Agent -> BKE environment.
+## What It Is Not
 
-Updates remain governed by: Digital Solutions -> Licensing Agent -> Updater Core -> OS privileged boundary -> Installed Product. The SDK does not bypass this chain.
+The SDK is not a licensing authority, entitlement engine, updater, trusted-key holder, privileged executor, or source of commercial policy. Decisions remain with the Licensing Agent and BKE Digital Solutions.
 
-Requirements: .NET 8, BKE Licensing Agent installed and running, and the certified v1 local Agent contract.
+## Architecture
 
-Installation (no package feed is claimed until configured):
+Product -> BKE.Desktop.Client -> Licensing Agent -> BKE environment.
 
-    <PackageReference Include="BKE.Desktop.Client" Version="1.0.0" />
+Updates remain governed by Digital Solutions -> Licensing Agent -> Updater Core -> OS privileged boundary -> Installed Product. The SDK does not bypass this chain.
 
-Quick start:
+## Requirements
 
-    using BKE.Desktop.Client;
-    using var client = BkeDesktopClient.Create();
-    var result = await client.AuthorizeAsync("bke-your-product", "1.0.0", installationId);
-    if (result.Status == AuthorizationStatus.Authorized) { /* start product */ }
+- .NET 8.
+- BKE Licensing Agent installed and running where authorization is required.
+- The current local Agent contract: POST http://127.0.0.1:43873/v1/authorize and POST http://127.0.0.1:43873/v1/license-center/open.
 
-The request is POST http://127.0.0.1:43873/v1/authorize with product_id, version, and installation_id. The consumer supplies legitimate product identity and stable installation identity.
+## Installation
 
-AuthorizationResult.Status distinguishes Authorized, Denied, ActivationRequired, AgentUnavailable, Unsupported, and InvalidResponse. OpenLicenseCenterAsync returns typed outcomes and verifies the echoed correlation ID.
+No package feed is claimed until one is configured. Consumers pin the explicit package version:
 
-The SDK contains no trusted private keys, entitlement logic, privileged helper selection, installation-root policy, update execution, or caller-controlled trusted configuration.
+```xml
+<PackageReference Include="BKE.Desktop.Client" Version="1.0.0" />
+```
 
-Version 1.0.0 is certified against Licensing Agent main SHA b34dcaebddbdad724b7d381172bf41eb7ec5a7cd, including /v1/authorize and /v1/license-center/open.
+## Quick Start
 
-Air Stack and Render Dock migrations are intentionally separate phases and are not performed in this repository phase. Consumers pin explicit semantic package versions.
+```csharp
+using BKE.Desktop.Client;
+
+using var client = BkeDesktopClient.Create();
+const string productId = "bke-your-product";
+const string version = "1.0.0";
+const string installationId = "stable-installation-identity";
+
+var result = await client.AuthorizeAsync(productId, version, installationId);
+
+if (result.Status == AuthorizationStatus.Authorized)
+{
+    // Start product functionality.
+}
+else
+{
+    // Present the typed result and stop or recover; never fail open.
+    Console.WriteLine(result.Reason);
+}
+```
+
+The consumer supplies a legitimate product ID, the running product version, and a stable installation identity according to the product's installation design. The SDK does not invent or authorize product identity.
+
+## API and Error Handling
+
+AuthorizeAsync returns typed statuses: Authorized, Denied, ActivationRequired, AgentUnavailable, Unsupported, InvalidRequest, and InvalidResponse. OpenLicenseCenterAsync returns typed outcomes and verifies the echoed correlation ID.
+
+## Security Model
+
+The SDK transports and normalizes the current Agent contract. It contains no trusted private keys, entitlement logic, privileged helper selection, installation-root policy, update execution, or caller-controlled trusted configuration.
+
+Secure Named Pipe module launch (bke.module-ipc.v1) is intentionally deferred from this initial SDK candidate. It will be added only after the canonical contract is separately verified and assigned to the SDK scope.
+
+## Versioning
+
+The package uses semantic versions and consumers pin explicit versions. The initial package candidate is BKE.Desktop.Client 1.0.0.
+
+## BKE Environment Compatibility
+
+This branch is contract-tested against the observed Agent request/response shapes. Runtime compatibility certification against a live Licensing Agent and a consumer package-restore test remain required before declaring 1.0.0 certified.
+
+## Air Stack and Render Dock Integration
+
+Air Stack and Render Dock migrations are separate phases. This repository change does not modify either consumer. Their exact starting SHAs must be re-inspected immediately before their migrations.
 
 See LICENSE.txt.
