@@ -134,7 +134,7 @@ public sealed class ClientTests
     [InlineData("authorization_refreshed", LicenseCenterStatus.AuthorizationRefreshed)]
     public async Task License_center_maps_terminal_outcomes(string outcome, LicenseCenterStatus expected)
     {
-        using var client = CreateClient(async r =>
+        using var client = CreateClient(async (r, _) =>
         {
             var body = await r.Content!.ReadAsStringAsync();
             var correlation = System.Text.Json.JsonDocument.Parse(body).RootElement.GetProperty("correlation_id").GetString();
