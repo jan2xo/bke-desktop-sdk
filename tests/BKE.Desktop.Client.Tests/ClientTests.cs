@@ -102,7 +102,7 @@ public sealed class ClientTests
     public async Task License_center_sends_and_validates_correlation()
     {
         HttpRequestMessage? request = null;
-        using var client = CreateClient(async r =>
+        using var client = CreateClient(async (r, _) =>
         {
             request = r;
             var body = await r.Content!.ReadAsStringAsync();
