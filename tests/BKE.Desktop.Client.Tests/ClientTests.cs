@@ -1,10 +1,11 @@
 using System;
+using System.IO;
 using System.Net;
 using System.Net.Http;
+using System.Net.Sockets;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Net.Http.Headers;
-using System.Text;
 using BKE.Desktop.Client;
 using Xunit;
 
@@ -145,22 +146,37 @@ public sealed class ClientTests
     }
 
     [Fact]
-    public async Task Redirect_response_is_not_followed()
+    public async Task Sdk_owned_transport_does_not_follow_redirects()
     {
-        var calls = 0;
-        using var client = CreateClient(_ =>
+        using var listener = new TcpListener(IPAddress.Loopback, 43873);
+        listener.Start();
+
+        var redirectTargetWasContacted = false;
+        var server = Task.Run(async () =>
         {
-            calls++;
-            return new HttpResponseMessage(HttpStatusCode.Redirect)
+            using var first = await listener.AcceptTcpClientAsync();
+            await ReadRequestHeadersAsync(first.GetStream());
+            await WriteResponseAsync(first.GetStream(),
+                "HTTP/1.1 302 Found\r\nLocation: http://127.0.0.1:43873/redirect-target\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+
+            using var probe = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
+            try
             {
-                Headers = { Location = new Uri("https://example.invalid/") }
-            };
+                using var second = await listener.AcceptTcpClientAsync(probe.Token);
+                redirectTargetWasContacted = true;
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected: SDK-owned HttpClientHandler must not follow the redirect.
+            }
         });
 
+        using var client = BkeDesktopClient.Create();
         var result = await client.AuthorizeAsync("p", "1", "i");
+        await server;
 
-        Assert.Equal(1, calls);
-        Assert.NotEqual(AuthorizationStatus.Authorized, result.Status);
+        Assert.Equal(AuthorizationStatus.ProtocolRejected, result.Status);
+        Assert.False(redirectTargetWasContacted);
     }
 
     [Fact]
@@ -171,6 +187,28 @@ public sealed class ClientTests
         var result = await client.AuthorizeAsync("", "1", "i");
 
         Assert.Equal(AuthorizationStatus.InvalidRequest, result.Status);
+    }
+
+    private static async Task ReadRequestHeadersAsync(NetworkStream stream)
+    {
+        var buffer = new byte[1024];
+        var received = new StringBuilder();
+
+        while (!received.ToString().Contains("\r\n\r\n", StringComparison.Ordinal))
+        {
+            var count = await stream.ReadAsync(buffer);
+            if (count == 0)
+                break;
+
+            received.Append(Encoding.ASCII.GetString(buffer, 0, count));
+        }
+    }
+
+    private static async Task WriteResponseAsync(NetworkStream stream, string response)
+    {
+        var bytes = Encoding.ASCII.GetBytes(response);
+        await stream.WriteAsync(bytes);
+        await stream.FlushAsync();
     }
 
     private static BkeDesktopClient CreateClient(Func<HttpRequestMessage, HttpResponseMessage> handler) =>
