@@ -45,7 +45,7 @@ jobs:
       - name: Run tests
         run: |
           mkdir -p test-results
-          dotnet test "$TEST_PROJECT" --configuration Release --no-build --logger "trx;LogFileName=test-results.trx"
+          dotnet test "$TEST_PROJECT" --configuration Release --no-build --results-directory test-results --logger "trx;LogFileName=test-results.trx"
 
       - name: Assert tests executed
         shell: bash
