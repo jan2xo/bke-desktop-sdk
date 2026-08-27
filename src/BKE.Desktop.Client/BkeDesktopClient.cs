@@ -8,7 +8,6 @@ using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 
-
 namespace BKE.Desktop.Client;
 
 public sealed class BkeDesktopClient : IDisposable
@@ -17,25 +16,24 @@ public sealed class BkeDesktopClient : IDisposable
     private readonly HttpClient httpClient;
     private readonly bool ownsHttpClient;
 
-    public static BkeDesktopClient Create(HttpClient? httpClient = null)
+    public static BkeDesktopClient Create()
     {
-        if (httpClient is not null)
-            return new BkeDesktopClient(httpClient, owns: false);
-
-        var handler = new HttpClientHandler
-        {
-            AllowAutoRedirect = false
-        };
+        var handler = CreateDefaultHandler();
 
         return new BkeDesktopClient(
             new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan },
             owns: true);
     }
 
-    public BkeDesktopClient(HttpClient httpClient)
-        : this(httpClient ?? throw new ArgumentNullException(nameof(httpClient)), owns: false)
-    {
-    }
+    internal static BkeDesktopClient Create(HttpClient httpClient) =>
+        new(httpClient ?? throw new ArgumentNullException(nameof(httpClient)), owns: false);
+
+    internal static HttpClientHandler CreateDefaultHandler() =>
+        new()
+        {
+            AllowAutoRedirect = false,
+            UseProxy = false
+        };
 
     private BkeDesktopClient(HttpClient client, bool owns)
     {
