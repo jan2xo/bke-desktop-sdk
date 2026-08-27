@@ -23,24 +23,34 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
-      - name: Record .NET SDK information
-        run: dotnet --info
+      - name: Verify .NET 8 SDK selection
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet --info
+          sdk_version="$(dotnet --version)"
+          case "$sdk_version" in
+            8.0.*) ;;
+            *)
+              echo "::error::Expected .NET SDK 8.0.x, selected $sdk_version"
+              exit 1
+              ;;
+          esac
 
       - name: Restore SDK and test projects
         run: |
           dotnet restore "$SDK_PROJECT"
           dotnet restore "$TEST_PROJECT"
 
-      - name: Build SDK and tests
-        run: |
-          dotnet build "$SDK_PROJECT" --configuration Release --no-restore
-          dotnet build "$TEST_PROJECT" --configuration Release --no-restore
+      - name: Build solution
+        run: dotnet build BKE.Desktop.SDK.sln --configuration Release --no-restore
 
-      - name: Verify Release assembly output
+      - name: Verify Release assembly outputs
         shell: bash
         run: |
           set -euo pipefail
           test -f src/BKE.Desktop.Client/bin/Release/net8.0/BKE.Desktop.Client.dll
+          test -f tests/BKE.Desktop.Client.Tests/bin/Release/net8.0/BKE.Desktop.Client.Tests.dll
 
       - name: Run tests
         run: |
@@ -69,6 +79,7 @@ jobs:
           test "${#packages[@]}" -eq 1
 
           unzip -Z1 "$PACKAGE_PATH" | grep -Fx 'README.md'
+          unzip -Z1 "$PACKAGE_PATH" | grep -Fx 'LICENSE.txt'
           unzip -Z1 "$PACKAGE_PATH" | grep -Fx 'lib/net8.0/BKE.Desktop.Client.dll'
           unzip -Z1 "$PACKAGE_PATH" | grep -Fx 'BKE.Desktop.Client.nuspec'
 
@@ -76,6 +87,7 @@ jobs:
           grep -q '<id>BKE.Desktop.Client</id>' package.nuspec
           grep -q '<version>1.0.0</version>' package.nuspec
           grep -q '<readme>README.md</readme>' package.nuspec
+          grep -q '<license type="file">LICENSE.txt</license>' package.nuspec
 
       - name: Upload package and test evidence
         uses: actions/upload-artifact@v4
