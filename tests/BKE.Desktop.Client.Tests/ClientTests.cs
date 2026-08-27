@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using BKE.Desktop.Client;
+using Xunit;
 
 namespace BKE.Desktop.Client.Tests;
 
@@ -123,7 +124,7 @@ public sealed class ClientTests
     }
 
     [Theory]
-    [InlineData("completed", LicenseCenterStatus.Failed)]
+    [InlineData("completed", LicenseCenterStatus.Completed)]
     [InlineData("cancelled", LicenseCenterStatus.Cancelled)]
     [InlineData("agent_unavailable", LicenseCenterStatus.AgentUnavailable)]
     [InlineData("authorization_refreshed", LicenseCenterStatus.AuthorizationRefreshed)]
