@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework><AssemblyName>BKE.Desktop.Client</AssemblyName><RootNamespace>BKE.Desktop.Client</RootNamespace><Version>1.0.0</Version><PackageId>BKE.Desktop.Client</PackageId><PackageTitle>BKE Desktop Client SDK</PackageTitle><Authors>BKE Digital Solutions</Authors><Description>Typed .NET client for the BKE Licensing Agent desktop integration contract.</Description><PackageReadmeFile>README.md</PackageReadmeFile><PackageOutputPath>$(MSBuildThisFileDirectory)..\..\artifacts</PackageOutputPath>
+  </PropertyGroup>
+  <ItemGroup><None Include="$(MSBuildThisFileDirectory)..\..\README.md" Pack="true" PackagePath="README.md" /></ItemGroup>
+</Project>
