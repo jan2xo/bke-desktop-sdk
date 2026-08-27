@@ -1,0 +1,3 @@
+Copyright (c) 2026 BKE Digital Solutions.
+
+Permission is granted to use, copy, modify, and distribute this software and documentation subject to repository policy.
