@@ -102,7 +102,7 @@ public sealed class ClientTests
             request = r;
             var body = await r.Content!.ReadAsStringAsync();
             var correlation = System.Text.Json.JsonDocument.Parse(body).RootElement.GetProperty("correlation_id").GetString();
-            return Json(HttpStatusCode.OK, $"""{"outcome":"authorization_refreshed","reason":"ok","correlation_id":"{correlation}"}""");
+            return Json(HttpStatusCode.OK, System.Text.Json.JsonSerializer.Serialize(new { outcome = "authorization_refreshed", reason = "ok", correlation_id = correlation }));
         });
 
         var result = await client.OpenLicenseCenterAsync("p", "1", "i");
@@ -133,7 +133,7 @@ public sealed class ClientTests
         {
             var body = await r.Content!.ReadAsStringAsync();
             var correlation = System.Text.Json.JsonDocument.Parse(body).RootElement.GetProperty("correlation_id").GetString();
-            return Json(HttpStatusCode.OK, $"""{"outcome":"{outcome}","reason":"reason","correlation_id":"{correlation}"}""");
+            return Json(HttpStatusCode.OK, System.Text.Json.JsonSerializer.Serialize(new { outcome, reason = "reason", correlation_id = correlation }));
         });
 
         Assert.Equal(expected, (await client.OpenLicenseCenterAsync("p", "1", "i")).Status);
