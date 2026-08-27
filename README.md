@@ -111,7 +111,15 @@ License Center requests, where supported by the current client surface, also ret
 
 The SDK is transport and integration infrastructure. It does not contain trusted private signing keys, entitlement logic, privileged helper selection, installation-root authority, update execution, or caller-controlled trusted configuration.
 
+The public `BkeDesktopClient.Create()` factory owns its HTTP transport. Automatic redirects and proxy use are disabled so authorization and License Center traffic stay on the fixed loopback endpoint. Custom `HttpClient` injection is internal to the SDK test assembly and is not part of the consumer API surface.
+
 The Licensing Agent remains the local authority. BKE Digital Solutions remains the commercial and policy authority. The SDK cannot be used to select trusted keys, privileged helpers, installation roots, or privileged target policy.
+
+### Current Local-Process Authenticity Boundary
+
+SDK 1.0.0 communicates with the Agent over ordinary loopback HTTP. The current Agent contract does not cryptographically or OS-authenticate the process that owns `127.0.0.1:43873` to the product. Therefore this SDK must not be described as resistant to a hostile local process impersonating the Agent if that process can obtain the Agent port.
+
+Agent-process authenticity must be solved at the shared product-to-Agent protocol boundary, for example through authenticated OS IPC or another Agent-owned authentication mechanism. The SDK must not solve that problem by embedding licensing private keys or authority into product code.
 
 ## Versioning
 

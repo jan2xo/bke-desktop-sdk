@@ -85,6 +85,20 @@ public sealed class ClientTests
     }
 
     [Fact]
+    public async Task Authorization_internal_timeout_maps_to_timeout()
+    {
+        using var client = CreateClient(async (_, token) =>
+        {
+            await Task.Delay(Timeout.InfiniteTimeSpan, token);
+            return Json(HttpStatusCode.OK, """{"authorized":true,"reason":"ok"}""");
+        });
+
+        var result = await client.AuthorizeAsync("p", "1", "i");
+
+        Assert.Equal(AuthorizationStatus.Timeout, result.Status);
+    }
+
+    [Fact]
     public async Task Caller_cancellation_is_preserved()
     {
         using var client = CreateClient(async (_, token) =>
@@ -133,6 +147,10 @@ public sealed class ClientTests
     [InlineData("cancelled", LicenseCenterStatus.Cancelled)]
     [InlineData("agent_unavailable", LicenseCenterStatus.AgentUnavailable)]
     [InlineData("authorization_refreshed", LicenseCenterStatus.AuthorizationRefreshed)]
+    [InlineData("invalid_product_context", LicenseCenterStatus.InvalidProductContext)]
+    [InlineData("incompatible_product_version", LicenseCenterStatus.IncompatibleProductVersion)]
+    [InlineData("activation_failed", LicenseCenterStatus.ActivationFailed)]
+    [InlineData("failed", LicenseCenterStatus.Failed)]
     public async Task License_center_maps_terminal_outcomes(string outcome, LicenseCenterStatus expected)
     {
         using var client = CreateClient(async (r, _) =>
@@ -143,6 +161,15 @@ public sealed class ClientTests
         });
 
         Assert.Equal(expected, (await client.OpenLicenseCenterAsync("p", "1", "i")).Status);
+    }
+
+    [Fact]
+    public void Sdk_owned_transport_disables_redirects_and_proxies()
+    {
+        using var handler = BkeDesktopClient.CreateDefaultHandler();
+
+        Assert.False(handler.AllowAutoRedirect);
+        Assert.False(handler.UseProxy);
     }
 
     [Fact]
