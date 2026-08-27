@@ -54,19 +54,19 @@ public sealed class ClientTests
     }
 
     [Theory]
-    [InlineData(HttpStatusCode.BadRequest)]
-    [InlineData(HttpStatusCode.Forbidden)]
-    [InlineData(HttpStatusCode.NotFound)]
-    [InlineData(HttpStatusCode.UnsupportedMediaType)]
-    [InlineData(HttpStatusCode.ServiceUnavailable)]
-    public async Task Non_success_authorization_response_never_authorizes(HttpStatusCode status)
+    [InlineData(HttpStatusCode.BadRequest, AuthorizationStatus.ProtocolRejected)]
+    [InlineData(HttpStatusCode.Forbidden, AuthorizationStatus.ProtocolRejected)]
+    [InlineData(HttpStatusCode.NotFound, AuthorizationStatus.ProtocolRejected)]
+    [InlineData(HttpStatusCode.UnsupportedMediaType, AuthorizationStatus.ProtocolRejected)]
+    [InlineData(HttpStatusCode.ServiceUnavailable, AuthorizationStatus.AgentUnavailable)]
+    public async Task Non_success_authorization_response_never_authorizes(HttpStatusCode status, AuthorizationStatus expected)
     {
         using var client = CreateClient(_ => Json(status, "{}"));
 
         var result = await client.AuthorizeAsync("p", "1", "i");
 
         Assert.NotEqual(AuthorizationStatus.Authorized, result.Status);
-        Assert.Equal(AuthorizationStatus.AgentUnavailable, result.Status);
+        Assert.Equal(expected, result.Status);
     }
 
     [Fact]
@@ -165,7 +165,7 @@ public sealed class ClientTests
 
         var result = await client.AuthorizeAsync("", "1", "i");
 
-        Assert.Equal(AuthorizationStatus.InvalidResponse, result.Status);
+        Assert.Equal(AuthorizationStatus.InvalidRequest, result.Status);
     }
 
     private static BkeDesktopClient CreateClient(Func<HttpRequestMessage, HttpResponseMessage> handler) =>
