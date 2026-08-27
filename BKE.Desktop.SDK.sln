@@ -1,0 +1,14 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BKE.Desktop.Client", "src\BKE.Desktop.Client\BKE.Desktop.Client.csproj", "{A4A66BD4-3A0A-4C60-9F7A-3A7C5D25A0E1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BKE.Desktop.Client.Tests", "tests\BKE.Desktop.Client.Tests\BKE.Desktop.Client.Tests.csproj", "{B2B4933C-7403-4C63-9F98-5F9E7D7B6C1A}"
+EndProject
+Global
+GlobalSection(SolutionConfigurationPlatforms) = preSolution
+Debug|Any CPU = Debug|Any CPU
+Release|Any CPU = Release|Any CPU
+EndGlobalSection
+EndGlobal
