@@ -1,0 +1,102 @@
+name: Publish SDK v1.0.0
+
+on:
+  push:
+    branches:
+      - release/v1.0.0-publication
+
+permissions:
+  contents: write
+
+env:
+  CERTIFIED_MAIN_SHA: 6fb8cb52c60d1e34414d2a4bc53fb7be52b1c294
+  CERTIFIED_RUN_ID: "33102202530"
+  CERTIFIED_ARTIFACT_ID: "9658950451"
+  CERTIFIED_ARTIFACT_NAME: BKE.Desktop.Client-1.0.0
+  CERTIFIED_ARTIFACT_DIGEST: sha256:034df0461bc9cb290ffd95b87425de74187040873a5b681162a9e28ca99715cc
+  PACKAGE_NAME: BKE.Desktop.Client.1.0.0.nupkg
+  RELEASE_TAG: v1.0.0
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify certified main is still canonical
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          current_main="$(gh api "repos/${GITHUB_REPOSITORY}/commits/main" --jq '.sha')"
+          test "$current_main" = "$CERTIFIED_MAIN_SHA"
+
+      - name: Verify certified artifact identity
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          artifact_id="$(gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${CERTIFIED_ARTIFACT_ID}" --jq '.id')"
+          artifact_name="$(gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${CERTIFIED_ARTIFACT_ID}" --jq '.name')"
+          artifact_digest="$(gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${CERTIFIED_ARTIFACT_ID}" --jq '.digest')"
+          artifact_head_sha="$(gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${CERTIFIED_ARTIFACT_ID}" --jq '.workflow_run.head_sha')"
+          test "$artifact_id" = "$CERTIFIED_ARTIFACT_ID"
+          test "$artifact_name" = "$CERTIFIED_ARTIFACT_NAME"
+          test "$artifact_digest" = "$CERTIFIED_ARTIFACT_DIGEST"
+          test "$artifact_head_sha" = "$CERTIFIED_MAIN_SHA"
+
+      - name: Download exact CI-certified artifact
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p certified
+          gh run download "$CERTIFIED_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$CERTIFIED_ARTIFACT_NAME" --dir certified
+          mapfile -t packages < <(find certified -type f -name '*.nupkg' -print)
+          test "${#packages[@]}" -eq 1
+          test "$(basename "${packages[0]}")" = "$PACKAGE_NAME"
+          cp "${packages[0]}" "$PACKAGE_NAME"
+          sha256sum "$PACKAGE_NAME" | tee package.sha256
+
+      - name: Publish GitHub Release from certified package
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::Release $RELEASE_TAG already exists; refusing to overwrite it."
+            exit 1
+          fi
+
+          package_sha="$(awk '{print $1}' package.sha256)"
+          cat > release-notes.md <<EOF
+          BKE Desktop Client SDK 1.0.0
+
+          Certified source commit: \`$CERTIFIED_MAIN_SHA\`
+          Certified GitHub Actions run: #50 (ID \`$CERTIFIED_RUN_ID\`)
+          Certification: .NET 8 solution build GREEN, 27/27 tests passed, package contents and metadata verified.
+
+          The attached \`$PACKAGE_NAME\` is the exact package extracted from certified Actions artifact \`$CERTIFIED_ARTIFACT_ID\`; this release workflow does not rebuild the SDK.
+
+          Package SHA-256: \`$package_sha\`
+          Source artifact digest: \`$CERTIFIED_ARTIFACT_DIGEST\`
+          EOF
+
+          gh release create "$RELEASE_TAG" "$PACKAGE_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$CERTIFIED_MAIN_SHA" \
+            --title "BKE Desktop Client SDK v1.0.0" \
+            --notes-file release-notes.md
+
+      - name: Verify published release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          release_tag="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json tagName --jq '.tagName')"
+          asset_name="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[0].name')"
+          test "$release_tag" = "$RELEASE_TAG"
+          test "$asset_name" = "$PACKAGE_NAME"
