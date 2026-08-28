@@ -1,0 +1,138 @@
+name: Publish BKE Desktop Licensing 1.0.0
+
+on:
+  push:
+    branches:
+      - release/desktop-licensing-v1.0.0
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+env:
+  SOURCE_SHA: 6d7b7a6585e830696fece2e6b57c0e23f0062e6b
+  RELEASE_TAG: desktop-licensing-v1.0.0
+  PACKAGE_PATH: artifacts/BKE.Desktop.Licensing.1.0.0.nupkg
+
+jobs:
+  certify-and-publish:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout exact canonical source
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Verify canonical source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          case "$(dotnet --version)" in 8.0.*) ;; *) exit 1 ;; esac
+
+      - name: Restore and build complete SDK family
+        run: |
+          dotnet restore BKE.Desktop.SDK.sln
+          dotnet build BKE.Desktop.SDK.sln --configuration Release --no-restore
+
+      - name: Run legacy compatibility and licensing tests
+        run: |
+          mkdir -p release-evidence
+          dotnet test tests/BKE.Desktop.Client.Tests/BKE.Desktop.Client.Tests.csproj \
+            --configuration Release --no-build \
+            --results-directory release-evidence \
+            --logger "trx;LogFileName=legacy.trx"
+          dotnet test tests/BKE.Desktop.Licensing.Tests/BKE.Desktop.Licensing.Tests.csproj \
+            --configuration Release --no-build \
+            --results-directory release-evidence \
+            --logger "trx;LogFileName=licensing.trx"
+          grep -q '<UnitTestResult' release-evidence/legacy.trx
+          grep -q '<UnitTestResult' release-evidence/licensing.trx
+
+      - name: Pack exact licensing package
+        run: |
+          rm -rf artifacts
+          mkdir -p artifacts
+          dotnet pack src/BKE.Desktop.Licensing/BKE.Desktop.Licensing.csproj \
+            --configuration Release --no-build --output artifacts
+
+      - name: Verify package identity, license, and canonical repository commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f "$PACKAGE_PATH"
+          unzip -Z1 "$PACKAGE_PATH" | grep -Fx 'LICENSE-BKE-PROPRIETARY.txt'
+          unzip -Z1 "$PACKAGE_PATH" | grep -Fx 'lib/net8.0/BKE.Desktop.Licensing.dll'
+          unzip -p "$PACKAGE_PATH" BKE.Desktop.Licensing.nuspec > release-evidence/package.nuspec
+          grep -q '<id>BKE.Desktop.Licensing</id>' release-evidence/package.nuspec
+          grep -q '<version>1.0.0</version>' release-evidence/package.nuspec
+          grep -q '<license type="file">LICENSE-BKE-PROPRIETARY.txt</license>' release-evidence/package.nuspec
+          grep -q "commit=\"$SOURCE_SHA\"" release-evidence/package.nuspec
+          sha256sum "$PACKAGE_PATH" | tee release-evidence/SHA256SUMS.txt
+          printf 'source=%s\n' "$SOURCE_SHA" > release-evidence/SOURCE.txt
+
+      - name: Attest package provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: artifacts/BKE.Desktop.Licensing.1.0.0.nupkg
+
+      - name: Write release notes
+        shell: bash
+        run: |
+          hash="$(cut -d' ' -f1 release-evidence/SHA256SUMS.txt)"
+          cat > release-evidence/RELEASE-NOTES.md <<EOF
+          # BKE.Desktop.Licensing 1.0.0
+
+          Canonical source: \`$SOURCE_SHA\`
+
+          Package SHA-256: \`$hash\`
+
+          This is the hardened licensing capability under the BKE Desktop SDK family.
+
+          - \`EnsureAuthorizedAsync\` owns authorize → activation → reauthorize choreography.
+          - \`NativeDesktop\` is the certified/default activation presentation and is Agent-owned.
+          - \`None\` performs authorization without presenting activation UI.
+          - \`SystemBrowser\` and \`CommandLine\` are reserved and fail closed as unsupported until separately hardened/certified.
+          - \`BKE.Desktop.Client\` 1.0.0 remains the frozen compatibility package.
+          - New capability source/package is distributed under the BKE proprietary license.
+
+          The Licensing Agent remains the authority. This package does not contain entitlement, lease-signing, updater, or privileged execution authority.
+          EOF
+
+      - name: Publish or refresh GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" \
+              "$PACKAGE_PATH" \
+              release-evidence/SHA256SUMS.txt \
+              release-evidence/SOURCE.txt \
+              release-evidence/package.nuspec \
+              release-evidence/legacy.trx \
+              release-evidence/licensing.trx \
+              release-evidence/RELEASE-NOTES.md \
+              --clobber --repo "$GITHUB_REPOSITORY"
+            gh release edit "$RELEASE_TAG" --notes-file release-evidence/RELEASE-NOTES.md --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$RELEASE_TAG" \
+              "$PACKAGE_PATH" \
+              release-evidence/SHA256SUMS.txt \
+              release-evidence/SOURCE.txt \
+              release-evidence/package.nuspec \
+              release-evidence/legacy.trx \
+              release-evidence/licensing.trx \
+              release-evidence/RELEASE-NOTES.md \
+              --target "$SOURCE_SHA" \
+              --title "BKE.Desktop.Licensing 1.0.0" \
+              --notes-file release-evidence/RELEASE-NOTES.md \
+              --repo "$GITHUB_REPOSITORY"
+          fi
