@@ -1,0 +1,19 @@
+BKE DESKTOP SDK CAPABILITIES — PROPRIETARY SOFTWARE LICENSE
+
+Copyright (c) 2026 BKES Information Technology Solutions, operating under the BKE Digital Solutions brand. All rights reserved.
+
+This software and its accompanying source code, binaries, documentation, package metadata, protocols, and other BKE-authored materials are proprietary to BKES Information Technology Solutions ("BKE"). They are licensed, not sold.
+
+Subject to a valid BKE product license or written agreement, an authorized user may use the compiled software only as incorporated into, or for the operation and development of, authorized BKE software.
+
+Except where expressly permitted by applicable law or a written agreement signed by BKE, no person may copy, reproduce, republish, distribute, sublicense, sell, rent, lease, transfer, disclose, modify, adapt, create derivative works from, reverse engineer, decompile, disassemble, bypass licensing or security controls in, or otherwise exploit this software or its source code.
+
+No right is granted to publish or redistribute this SDK or any substantial portion of its source code as a competing, derivative, or standalone SDK.
+
+Third-party components remain subject to their respective licenses and notices. This license applies only to BKE-authored materials and does not claim ownership of third-party software.
+
+No trademark, service mark, trade name, logo, or brand license is granted except as expressly authorized in writing by BKE.
+
+THE SOFTWARE IS PROVIDED "AS IS" TO THE MAXIMUM EXTENT PERMITTED BY LAW, WITHOUT WARRANTIES EXCEPT THOSE EXPRESSLY PROVIDED IN A SEPARATE WRITTEN AGREEMENT.
+
+For permissions or commercial licensing, contact BKE Digital Solutions.

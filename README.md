@@ -1,148 +1,136 @@
-# BKE Desktop SDK
+# BKE Desktop SDK Family
 
-## What It Is
+`bke-desktop-sdk` is the umbrella repository for product-facing .NET 8 desktop capabilities used by BKE software.
 
-`BKE.Desktop.Client` is a reusable .NET 8 managed client for desktop applications that communicate with the installed BKE Licensing Agent.
+## Capability family
 
-It centralizes proven integration mechanics such as the local Agent HTTP contract, request serialization, response parsing, timeout handling, and typed result normalization. Product applications provide their own legitimate product identity and installation identity.
+The package family is intentionally capability-oriented:
 
-## What It Is Not
-
-The SDK is not:
-
-- a licensing authority or entitlement engine;
-- a license issuer or activation-key authority;
-- a trusted-key or target-policy store;
-- an updater or update-policy authority;
-- a privileged executor;
-- a replacement for BKE Licensing Agent or Updater Core.
-
-Commercial and authorization decisions remain with the BKE environment.
-
-## Architecture
-
-Normal desktop authorization flow:
-
-`Product -> BKE.Desktop.Client -> BKE Licensing Agent -> BKE environment`
-
-The update authority chain remains separate:
-
-`BKE Digital Solutions -> BKE Licensing Agent -> Updater Core -> OS privileged boundary -> Installed Product`
-
-The SDK does not bypass or replace that chain.
-
-## Requirements
-
-- .NET 8 development target.
-- BKE Licensing Agent installed and running where authorization is required.
-- Compatibility with the local Agent contract documented below.
-
-## Installation
-
-The package feed has not been established yet. When the package is available through an approved feed, consumers should pin the explicit version:
-
-```xml
-<PackageReference Include="BKE.Desktop.Client" Version="1.0.0" />
+```text
+BKE.Desktop
+├── BKE.Desktop.Licensing
+├── BKE.Desktop.Identity
+├── BKE.Desktop.ModuleClient
+├── BKE.Desktop.UpdaterClient
+└── BKE.Desktop.GraceClient
 ```
 
-Do not use floating versions or manually copy an unversioned DLL.
+Each capability remains independently versioned. A product composes only the capabilities it needs.
 
-## Quick Start
+## Licensing capability
+
+`BKE.Desktop.Licensing` is the hardened successor for product-to-Licensing-Agent authorization and activation orchestration.
+
+It owns integration mechanics only:
+
+```text
+Product
+  -> BKE.Desktop.Licensing
+  -> BKE Licensing Agent
+  -> BKE licensing environment
+```
+
+The package never becomes the licensing authority. It does not contain lease authority, entitlement policy, private signing keys, trusted-key selection, privileged update execution, installer authority, or product-specific business logic.
+
+### Quick start
 
 ```csharp
-using BKE.Desktop.Client;
+using BKE.Desktop.Licensing;
 
-using var client = BkeDesktopClient.Create();
+using var licensing = BkeLicensingClient.Create();
 
-var productId = "bke-your-product";
-var version = "1.0.0";
-var installationId = GetStableInstallationId();
+var result = await licensing.EnsureAuthorizedAsync(
+    productId: "bke-your-product",
+    version: "1.0.0",
+    installationId: GetStableInstallationId(),
+    options: new LicensingFlowOptions
+    {
+        ActivationInteraction = ActivationInteraction.NativeDesktop
+    });
 
-var result = await client.AuthorizeAsync(productId, version, installationId);
-
-if (result.Status == AuthorizationStatus.Authorized)
+if (!result.Authorized)
 {
-    // Start product functionality.
+    // Fail closed.
+    return;
 }
-else
+
+// Start product functionality.
+```
+
+`EnsureAuthorizedAsync` owns the standard startup choreography:
+
+```text
+Authorize
+  -> Authorized: return
+  -> ActivationRequired:
+       apply interaction policy
+       -> Agent-owned activation presentation
+       -> wait for completion
+       -> re-authorize
+       -> return final decision
+```
+
+Products should not duplicate this orchestration in `Program.cs` and should not locate or launch the License Center executable themselves.
+
+## Activation interaction policy
+
+The public policy is explicit rather than a generic `GUI=true` flag:
+
+```csharp
+public enum ActivationInteraction
 {
-    // Handle the typed status and fail closed.
+    NativeDesktop,
+    SystemBrowser,
+    CommandLine,
+    None
 }
 ```
 
-`GetStableInstallationId()` represents an identity obtained by the consumer using its approved installation-identity policy. The SDK does not invent product identity or make commercial decisions.
+For `BKE.Desktop.Licensing` 1.0.0:
 
-## Current Agent Contract
+- `NativeDesktop` is supported and is the default. The SDK asks the Licensing Agent to open its native License Center.
+- `None` performs authorization only and leaves `ActivationRequired` to the caller without presenting activation UI.
+- `SystemBrowser` is reserved but deliberately returns `Unsupported` until a browser activation path is separately hardened and certified.
+- `CommandLine` is reserved but deliberately returns `Unsupported` until an Agent-owned CLI activation path is separately hardened and certified.
 
-The current local contract uses:
+An unsupported interaction must never silently fall back to another presentation mode.
+
+## Low-level surface
+
+Advanced callers can use:
+
+- `AuthorizeAsync(productId, version, installationId)`
+- `OpenLicenseCenterAsync(productId, version, installationId)`
+
+The current Agent contract uses the fixed loopback boundary:
 
 - `POST http://127.0.0.1:43873/v1/authorize`
-- JSON fields `product_id`, `version`, and `installation_id`
-- an authorization response containing `authorized` and `reason`
+- `POST http://127.0.0.1:43873/v1/license-center/open`
 
-The SDK targets the default local Agent endpoint and does not claim arbitrary endpoint configuration.
+Automatic redirects and proxy use are disabled by the default client factory.
 
-## Product Identity
+## Legacy compatibility package
 
-The consumer supplies:
+`BKE.Desktop.Client` 1.0.0 is retained as a frozen compatibility package for already-certified consumers. It is not renamed in place and its public API is not broken.
 
-- `productId`: the registered BKE product identifier;
-- `version`: the product version being authorized;
-- `installationId`: a stable identity for the installation, obtained under the consumer's approved policy.
+New licensing integrations should target:
 
-The SDK does not hardcode Air Stack or Render Dock business logic.
+```xml
+<PackageReference Include="BKE.Desktop.Licensing" Version="1.0.0" />
+```
 
-## Error Handling
+Consumer migration is performed repository-by-repository with CI evidence.
 
-Authorization results expose typed statuses such as:
+## Security boundary
 
-- `Authorized`
-- `Denied`
-- `ActivationRequired`
-- `AgentUnavailable`
-- `Unsupported`
-- `InvalidResponse`
+The Licensing Agent remains the local authority and owns activation presentation. BKE Digital Solutions remains the commercial and policy authority.
 
-Consumers must treat unavailable, unsupported, malformed, and denied outcomes as non-authorized. The SDK does not silently fail open.
+The SDK cannot select trusted keys, write leases, choose privileged helpers, choose install roots, or authorize itself. Unavailable, malformed, unsupported, denied, or failed outcomes remain fail-closed.
 
-License Center requests, where supported by the current client surface, also return typed outcomes and validate the echoed correlation ID.
+The local product-to-Agent transport is currently ordinary loopback HTTP. It does not cryptographically authenticate the process that owns `127.0.0.1:43873`; process authenticity is a shared protocol-boundary hardening item and must not be "solved" by embedding authority or private keys in product code.
 
-## Security Model
+## Licensing of SDK source
 
-The SDK is transport and integration infrastructure. It does not contain trusted private signing keys, entitlement logic, privileged helper selection, installation-root authority, update execution, or caller-controlled trusted configuration.
+New BKE Desktop capability packages are distributed under [LICENSE-BKE-PROPRIETARY.txt](LICENSE-BKE-PROPRIETARY.txt).
 
-The public `BkeDesktopClient.Create()` factory owns its HTTP transport. Automatic redirects and proxy use are disabled so authorization and License Center traffic stay on the fixed loopback endpoint. Custom `HttpClient` injection is internal to the SDK test assembly and is not part of the consumer API surface.
-
-The Licensing Agent remains the local authority. BKE Digital Solutions remains the commercial and policy authority. The SDK cannot be used to select trusted keys, privileged helpers, installation roots, or privileged target policy.
-
-### Current Local-Process Authenticity Boundary
-
-SDK 1.0.0 communicates with the Agent over ordinary loopback HTTP. The current Agent contract does not cryptographically or OS-authenticate the process that owns `127.0.0.1:43873` to the product. Therefore this SDK must not be described as resistant to a hostile local process impersonating the Agent if that process can obtain the Agent port.
-
-Agent-process authenticity must be solved at the shared product-to-Agent protocol boundary, for example through authenticated OS IPC or another Agent-owned authentication mechanism. The SDK must not solve that problem by embedding licensing private keys or authority into product code.
-
-## Versioning
-
-The package uses explicit semantic versions. Consumers should pin a tested package version such as `1.0.0`. A new package version requires compatibility evidence before adoption.
-
-## BKE Environment Compatibility
-
-This repository currently documents the local Agent contract at Licensing Agent baseline `b34dcaebddbdad724b7d381172bf41eb7ec5a7cd`. This is a compatibility target/reference, not a claim of completed runtime certification. Package certification requires successful contract tests, package verification, and an explicit compatibility evidence record.
-
-## Air Stack Integration
-
-Air Stack migration is intentionally separate. After this SDK candidate is certified, Air Stack will be migrated and tested in its own repository without changing its product behavior or bypassing Licensing Agent authority.
-
-## Render Dock Integration
-
-Render Dock migration is intentionally separate. After the SDK candidate is certified and the Air Stack integration pattern is proven, Render Dock will be migrated and tested in its own repository.
-
-## Secure Module Launch
-
-Secure module-launch transport is not claimed as a supported SDK 1.0.0 capability by this metadata/documentation work. Its inclusion or deferral must be decided and certified in the implementation workstream before consumer migration.
-
-## Publication Status
-
-No production package has been published. The repository package artifact, if generated by CI, is a candidate artifact only.
-
-See [LICENSE.txt](LICENSE.txt).
+The already-published `BKE.Desktop.Client` 1.0.0 compatibility package retains the license terms under which that version was released; changing successor-package licensing does not retroactively rewrite the terms of previously distributed copies.
