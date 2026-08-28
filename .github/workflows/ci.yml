@@ -11,9 +11,10 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     env:
-      SDK_PROJECT: src/BKE.Desktop.Client/BKE.Desktop.Client.csproj
-      TEST_PROJECT: tests/BKE.Desktop.Client.Tests/BKE.Desktop.Client.Tests.csproj
-      PACKAGE_PATH: artifacts/BKE.Desktop.Client.1.0.0.nupkg
+      LICENSING_PROJECT: src/BKE.Desktop.Licensing/BKE.Desktop.Licensing.csproj
+      LEGACY_TEST_PROJECT: tests/BKE.Desktop.Client.Tests/BKE.Desktop.Client.Tests.csproj
+      LICENSING_TEST_PROJECT: tests/BKE.Desktop.Licensing.Tests/BKE.Desktop.Licensing.Tests.csproj
+      PACKAGE_PATH: artifacts/BKE.Desktop.Licensing.1.0.0.nupkg
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
@@ -37,10 +38,8 @@ jobs:
               ;;
           esac
 
-      - name: Restore SDK and test projects
-        run: |
-          dotnet restore "$SDK_PROJECT"
-          dotnet restore "$TEST_PROJECT"
+      - name: Restore complete SDK family solution
+        run: dotnet restore BKE.Desktop.SDK.sln
 
       - name: Build solution
         run: dotnet build BKE.Desktop.SDK.sln --configuration Release --no-restore
@@ -50,25 +49,34 @@ jobs:
         run: |
           set -euo pipefail
           test -f src/BKE.Desktop.Client/bin/Release/net8.0/BKE.Desktop.Client.dll
+          test -f src/BKE.Desktop.Licensing/bin/Release/net8.0/BKE.Desktop.Licensing.dll
           test -f tests/BKE.Desktop.Client.Tests/bin/Release/net8.0/BKE.Desktop.Client.Tests.dll
+          test -f tests/BKE.Desktop.Licensing.Tests/bin/Release/net8.0/BKE.Desktop.Licensing.Tests.dll
 
-      - name: Run tests
+      - name: Run legacy compatibility tests
         run: |
-          mkdir -p test-results
-          dotnet test "$TEST_PROJECT" --configuration Release --no-build --results-directory test-results --logger "trx;LogFileName=test-results.trx"
+          mkdir -p test-results/legacy
+          dotnet test "$LEGACY_TEST_PROJECT" --configuration Release --no-build --results-directory test-results/legacy --logger "trx;LogFileName=legacy.trx"
 
-      - name: Assert tests executed
+      - name: Run licensing capability tests
+        run: |
+          mkdir -p test-results/licensing
+          dotnet test "$LICENSING_TEST_PROJECT" --configuration Release --no-build --results-directory test-results/licensing --logger "trx;LogFileName=licensing.trx"
+
+      - name: Assert both test suites executed
         shell: bash
         run: |
           set -euo pipefail
-          test -s test-results/test-results.trx
-          grep -q '<UnitTestResult' test-results/test-results.trx
+          test -s test-results/legacy/legacy.trx
+          test -s test-results/licensing/licensing.trx
+          grep -q '<UnitTestResult' test-results/legacy/legacy.trx
+          grep -q '<UnitTestResult' test-results/licensing/licensing.trx
 
-      - name: Pack release package
+      - name: Pack hardened licensing capability
         run: |
           rm -rf artifacts
           mkdir -p artifacts
-          dotnet pack "$SDK_PROJECT" --configuration Release --no-build --output artifacts
+          dotnet pack "$LICENSING_PROJECT" --configuration Release --no-build --output artifacts
 
       - name: Verify package contents and metadata
         shell: bash
@@ -79,21 +87,34 @@ jobs:
           test "${#packages[@]}" -eq 1
 
           unzip -Z1 "$PACKAGE_PATH" | grep -Fx 'README.md'
-          unzip -Z1 "$PACKAGE_PATH" | grep -Fx 'LICENSE.txt'
-          unzip -Z1 "$PACKAGE_PATH" | grep -Fx 'lib/net8.0/BKE.Desktop.Client.dll'
-          unzip -Z1 "$PACKAGE_PATH" | grep -Fx 'BKE.Desktop.Client.nuspec'
+          unzip -Z1 "$PACKAGE_PATH" | grep -Fx 'LICENSE-BKE-PROPRIETARY.txt'
+          unzip -Z1 "$PACKAGE_PATH" | grep -Fx 'lib/net8.0/BKE.Desktop.Licensing.dll'
+          unzip -Z1 "$PACKAGE_PATH" | grep -Fx 'BKE.Desktop.Licensing.nuspec'
 
-          unzip -p "$PACKAGE_PATH" BKE.Desktop.Client.nuspec > package.nuspec
-          grep -q '<id>BKE.Desktop.Client</id>' package.nuspec
+          unzip -p "$PACKAGE_PATH" BKE.Desktop.Licensing.nuspec > package.nuspec
+          grep -q '<id>BKE.Desktop.Licensing</id>' package.nuspec
           grep -q '<version>1.0.0</version>' package.nuspec
           grep -q '<readme>README.md</readme>' package.nuspec
-          grep -q '<license type="file">LICENSE.txt</license>' package.nuspec
+          grep -q '<license type="file">LICENSE-BKE-PROPRIETARY.txt</license>' package.nuspec
 
-      - name: Upload package and test evidence
+      - name: Verify package boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -R --line-number --fixed-strings 'BKE.Desktop.Client' src/BKE.Desktop.Licensing tests/BKE.Desktop.Licensing.Tests; then
+            echo '::error::BKE.Desktop.Licensing must not depend on the legacy BKE.Desktop.Client package.'
+            exit 1
+          fi
+          grep -q 'ActivationInteraction.NativeDesktop' src/BKE.Desktop.Licensing/BkeLicensingClient.cs
+          grep -q 'activation_interaction_not_supported:system_browser' src/BKE.Desktop.Licensing/BkeLicensingClient.cs
+          grep -q 'activation_interaction_not_supported:command_line' src/BKE.Desktop.Licensing/BkeLicensingClient.cs
+
+      - name: Upload licensing package and test evidence
         uses: actions/upload-artifact@v7
         with:
-          name: BKE.Desktop.Client-1.0.0
+          name: BKE.Desktop.Licensing-1.0.0
           path: |
-            artifacts/BKE.Desktop.Client.1.0.0.nupkg
-            test-results/test-results.trx
+            artifacts/BKE.Desktop.Licensing.1.0.0.nupkg
+            test-results/legacy/legacy.trx
+            test-results/licensing/licensing.trx
           if-no-files-found: error
