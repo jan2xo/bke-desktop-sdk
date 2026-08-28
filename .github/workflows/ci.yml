@@ -101,8 +101,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if grep -R --line-number --fixed-strings 'BKE.Desktop.Client' src/BKE.Desktop.Licensing tests/BKE.Desktop.Licensing.Tests; then
-            echo '::error::BKE.Desktop.Licensing must not depend on the legacy BKE.Desktop.Client package.'
+          if grep -R --line-number --include='*.cs' --fixed-strings 'BKE.Desktop.Client' src/BKE.Desktop.Licensing tests/BKE.Desktop.Licensing.Tests; then
+            echo '::error::BKE.Desktop.Licensing source must not use the legacy BKE.Desktop.Client namespace.'
+            exit 1
+          fi
+          if grep -R --line-number --include='*.csproj' -E '(<PackageReference[^>]+BKE\.Desktop\.Client|<ProjectReference[^>]+BKE\.Desktop\.Client)' src/BKE.Desktop.Licensing tests/BKE.Desktop.Licensing.Tests; then
+            echo '::error::BKE.Desktop.Licensing must not reference the legacy BKE.Desktop.Client package/project.'
             exit 1
           fi
           grep -q 'ActivationInteraction.NativeDesktop' src/BKE.Desktop.Licensing/BkeLicensingClient.cs
