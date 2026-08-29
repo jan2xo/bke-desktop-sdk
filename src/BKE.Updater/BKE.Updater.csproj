@@ -5,7 +5,7 @@
     <AssemblyName>BKE.Updater</AssemblyName>
     <PackageId>BKE.Updater</PackageId>
     <Version>0.2.0</Version>
-    <PackageVersion>0.1.0</PackageVersion>
+    <PackageVersion>0.2.0</PackageVersion>
     <Authors>BKE Digital Solutions</Authors>
     <Description>Product-neutral secured update capability contracts.</Description>
     <PackageLicenseFile>LICENSE-BKE-PROPRIETARY.txt</PackageLicenseFile>
