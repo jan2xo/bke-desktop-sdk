@@ -36,3 +36,5 @@ jobs:
           name: BKE.Notifications-0.2.0
           path: artifacts/BKE.Notifications.0.2.0.nupkg
           if-no-files-found: error
+
+# .NET 10 migration exact-head certification trigger
