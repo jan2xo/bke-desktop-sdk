@@ -11,7 +11,7 @@
     <Description>Typed .NET 10 client for the BKE Licensing Agent desktop integration contract.</Description>
     <PackageTags>bke;desktop;sdk;licensing-agent;dotnet</PackageTags>
     <PackageReleaseNotes>Initial .NET 10 integration client release. Consumer migration and production publication are separate phases.</PackageReleaseNotes>
-    <RepositoryUrl>https://github.com/jan2xo/bke-desktop-sdk</RepositoryUrl>
+    <RepositoryUrl>https://github.com/jan2xo/bke-sdk</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
     <PackageReadmeFile>README.md</PackageReadmeFile>
