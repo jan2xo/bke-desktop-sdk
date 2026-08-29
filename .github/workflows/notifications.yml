@@ -1,0 +1,40 @@
+name: BKE.Notifications
+
+on:
+  push:
+    paths:
+      - 'src/BKE.Notifications/**'
+      - 'tests/BKE.Notifications.Tests/**'
+      - 'Directory.Build.props'
+      - 'global.json'
+      - '.github/workflows/notifications.yml'
+  pull_request:
+    paths:
+      - 'src/BKE.Notifications/**'
+      - 'tests/BKE.Notifications.Tests/**'
+      - 'Directory.Build.props'
+      - 'global.json'
+      - '.github/workflows/notifications.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with: { dotnet-version: '10.0.x' }
+      - run: dotnet restore src/BKE.Notifications/BKE.Notifications.csproj
+      - run: dotnet build src/BKE.Notifications/BKE.Notifications.csproj --configuration Release --no-restore
+      - run: dotnet test tests/BKE.Notifications.Tests/BKE.Notifications.Tests.csproj --configuration Release
+      - run: dotnet pack src/BKE.Notifications/BKE.Notifications.csproj --configuration Release --output artifacts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BKE.Notifications-0.2.0
+          path: artifacts/BKE.Notifications.0.2.0.nupkg
+          if-no-files-found: error
+
+# .NET 10 migration exact-head certification trigger

@@ -1,0 +1,43 @@
+name: BKE SDK Certification
+
+on:
+  push:
+    paths:
+      - 'BKE.SDK.sln'
+      - 'global.json'
+      - '.github/workflows/sdk-certification.yml'
+  workflow_dispatch:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  certify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with: { dotnet-version: '10.0.x' }
+      - run: dotnet --version
+      - name: Restore umbrella SDK solution
+        run: dotnet restore BKE.SDK.sln
+      - name: Build umbrella SDK solution
+        run: dotnet build BKE.SDK.sln --configuration Release --no-restore
+      - run: dotnet test tests/BKE.Desktop.Client.Tests/BKE.Desktop.Client.Tests.csproj --configuration Release --no-build
+      - run: dotnet test tests/BKE.Desktop.Licensing.Tests/BKE.Desktop.Licensing.Tests.csproj --configuration Release --no-build
+      - run: dotnet test tests/BKE.Updater.Tests/BKE.Updater.Tests.csproj --configuration Release --no-build
+      - run: dotnet test tests/BKE.Notifications.Tests/BKE.Notifications.Tests.csproj --configuration Release --no-build
+      - run: mkdir -p artifacts
+      - run: dotnet pack src/BKE.Desktop.Client/BKE.Desktop.Client.csproj --configuration Release --no-build --output artifacts
+      - run: dotnet pack src/BKE.Desktop.Licensing/BKE.Desktop.Licensing.csproj --configuration Release --no-build --output artifacts
+      - run: dotnet pack src/BKE.Updater/BKE.Updater.csproj --configuration Release --no-build --output artifacts
+      - run: dotnet pack src/BKE.Notifications/BKE.Notifications.csproj --configuration Release --no-build --output artifacts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bke-sdk-certification
+          path: artifacts/*.nupkg
+          if-no-files-found: error
+
+# Exact-head certification after canonical metadata and umbrella-solution cleanup.
