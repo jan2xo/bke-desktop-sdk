@@ -6,6 +6,11 @@ on:
       - 'BKE.SDK.sln'
       - 'global.json'
       - '.github/workflows/sdk-certification.yml'
+  pull_request:
+    paths:
+      - 'BKE.SDK.sln'
+      - 'global.json'
+      - '.github/workflows/sdk-certification.yml'
   workflow_dispatch:
   release:
     types: [published]
