@@ -1,25 +1,30 @@
-# BKE Desktop SDK Family
+# BKE SDK Family
 
-`bke-sdk` is the umbrella repository for product-facing .NET 10 desktop capabilities used by BKE software.
+`bke-sdk` is the umbrella repository for reusable, product-facing .NET 10 capability packages used by BKE software.
 
-## Capability family
+## Active capability family
 
-The package family is intentionally capability-oriented:
+The current repository contains four independently versioned packages:
 
 ```text
-BKE.Desktop
-├── BKE.Desktop.Licensing
-├── BKE.Desktop.Identity
-├── BKE.Desktop.ModuleClient
-├── BKE.Desktop.UpdaterClient
-└── BKE.Desktop.GraceClient
+BKE SDK
+├── BKE.Desktop.Client        2.0.0
+├── BKE.Desktop.Licensing     2.0.0
+├── BKE.Updater               0.2.0
+└── BKE.Notifications         0.2.0
 ```
 
-Each capability remains independently versioned. A product composes only the capabilities it needs.
+A product composes only the capabilities it needs. One repository does not imply one package, one dependency chain, or one CI blast radius.
+
+## Umbrella solution
+
+`BKE.SDK.sln` contains all active SDK and test projects for deliberate full-family development/certification.
+
+`BKE.Desktop.SDK.sln` is retained as the focused Client/Licensing solution used by the legacy capability CI lane so ordinary changes do not rebuild unrelated capabilities.
 
 ## Licensing capability
 
-`BKE.Desktop.Licensing` is the hardened successor for product-to-Licensing-Agent authorization and activation orchestration.
+`BKE.Desktop.Licensing` is the hardened product-to-Licensing-Agent authorization and activation capability.
 
 It owns integration mechanics only:
 
@@ -86,7 +91,7 @@ public enum ActivationInteraction
 }
 ```
 
-For `BKE.Desktop.Licensing` 1.0.0:
+For `BKE.Desktop.Licensing` 2.0.0:
 
 - `NativeDesktop` is supported and is the default. The SDK asks the Licensing Agent to open its native License Center.
 - `None` performs authorization only and leaves `ActivationRequired` to the caller without presenting activation UI.
@@ -95,7 +100,7 @@ For `BKE.Desktop.Licensing` 1.0.0:
 
 An unsupported interaction must never silently fall back to another presentation mode.
 
-## Low-level surface
+## Low-level licensing surface
 
 Advanced callers can use:
 
@@ -109,14 +114,42 @@ The current Agent contract uses the fixed loopback boundary:
 
 Automatic redirects and proxy use are disabled by the default client factory.
 
-## Legacy compatibility package
+## Updater capability
 
-`BKE.Desktop.Client` 1.0.0 is retained as a frozen compatibility package for already-certified consumers. It is not renamed in place and its public API is not broken.
+`BKE.Updater` is a product-neutral secured update capability contract package. It defines the consumer-facing request/result boundary without giving products signing keys, trust stores, arbitrary install roots, privileged helper selection, or caller-selected trusted download authority.
 
-New licensing integrations should target:
+Real provider/transport implementation is a separate layer and is intentionally not part of the current scaffold package.
+
+## Notifications capability
+
+`BKE.Notifications` is a product-neutral software-side notification capability contract package. It does not own product UI, operating-system toast presentation, persistence, push infrastructure, or message brokers.
+
+Applications remain responsible for presentation while consuming the stable notification contract.
+
+## Package references
+
+Active .NET 10 licensing integrations should use:
 
 ```xml
-<PackageReference Include="BKE.Desktop.Licensing" Version="1.0.0" />
+<PackageReference Include="BKE.Desktop.Licensing" Version="2.0.0" />
+```
+
+The currently scaffolded reusable capabilities are:
+
+```xml
+<PackageReference Include="BKE.Updater" Version="0.2.0" />
+<PackageReference Include="BKE.Notifications" Version="0.2.0" />
+```
+
+## Historical compatibility packages
+
+`BKE.Desktop.Client` 1.0.0 and `BKE.Desktop.Licensing` 1.0.0 remain immutable historical .NET 8 package artifacts. They are not republished or rewritten.
+
+The active .NET 10 successors are:
+
+```text
+BKE.Desktop.Client      2.0.0
+BKE.Desktop.Licensing   2.0.0
 ```
 
 Consumer migration is performed repository-by-repository with CI evidence.
@@ -131,15 +164,14 @@ The local product-to-Agent transport is currently ordinary loopback HTTP. It doe
 
 ## Licensing of SDK source
 
-New BKE Desktop capability packages are distributed under [LICENSE-BKE-PROPRIETARY.txt](LICENSE-BKE-PROPRIETARY.txt).
+New BKE capability packages are distributed under [LICENSE-BKE-PROPRIETARY.txt](LICENSE-BKE-PROPRIETARY.txt) unless a package explicitly retains earlier release terms.
 
-The already-published `BKE.Desktop.Client` 1.0.0 compatibility package retains the license terms under which that version was released; changing successor-package licensing does not retroactively rewrite the terms of previously distributed copies.
-
+The already-distributed historical package versions retain the terms under which those exact versions were released; successor-package licensing does not retroactively rewrite previously distributed copies.
 
 ## .NET 10 baseline
 
 **2026-08-29 — .NET 10 baseline decision**
 
-Active BKE SDK development now targets stable .NET 10. Previous .NET 8 package releases remain immutable historical compatibility artifacts and are not republished. New package releases are .NET 10 only. Products still targeting .NET 8 must migrate before adopting these package versions.
+Active BKE SDK development targets stable .NET 10. Previous .NET 8 package releases remain immutable historical compatibility artifacts and are not republished. New active package releases are .NET 10 only. Products still targeting .NET 8 must migrate before adopting these package versions.
 
 The future `bke-runtime` executable host remains a separate project; this repository contains reusable SDK libraries and secured contracts only.
