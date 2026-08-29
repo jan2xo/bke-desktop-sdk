@@ -1,6 +1,6 @@
 # BKE Desktop SDK Family
 
-`bke-desktop-sdk` is the umbrella repository for product-facing .NET 8 desktop capabilities used by BKE software.
+`bke-sdk` is the umbrella repository for product-facing .NET 10 desktop capabilities used by BKE software.
 
 ## Capability family
 
@@ -134,3 +134,12 @@ The local product-to-Agent transport is currently ordinary loopback HTTP. It doe
 New BKE Desktop capability packages are distributed under [LICENSE-BKE-PROPRIETARY.txt](LICENSE-BKE-PROPRIETARY.txt).
 
 The already-published `BKE.Desktop.Client` 1.0.0 compatibility package retains the license terms under which that version was released; changing successor-package licensing does not retroactively rewrite the terms of previously distributed copies.
+
+
+## .NET 10 baseline
+
+**2026-08-29 — .NET 10 baseline decision**
+
+Active BKE SDK development now targets stable .NET 10. Previous .NET 8 package releases remain immutable historical compatibility artifacts and are not republished. New package releases are .NET 10 only. Products still targeting .NET 8 must migrate before adopting these package versions.
+
+The future `bke-runtime` executable host remains a separate project; this repository contains reusable SDK libraries and secured contracts only.
