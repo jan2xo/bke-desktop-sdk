@@ -33,8 +33,6 @@ jobs:
       - run: dotnet pack src/BKE.Updater/BKE.Updater.csproj --configuration Release --output artifacts
       - uses: actions/upload-artifact@v4
         with:
-          name: BKE.Updater-0.2.0
-          path: artifacts/BKE.Updater.0.2.0.nupkg
+          name: BKE.Updater-0.3.0
+          path: artifacts/BKE.Updater.0.3.0.nupkg
           if-no-files-found: error
-
-# .NET 10 migration exact-head certification trigger
