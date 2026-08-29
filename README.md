@@ -10,8 +10,8 @@ The current repository contains four independently versioned packages:
 BKE SDK
 ├── BKE.Desktop.Client        2.0.0
 ├── BKE.Desktop.Licensing     2.0.0
-├── BKE.Updater               0.2.0
-└── BKE.Notifications         0.2.0
+├── BKE.Updater               0.3.0
+└── BKE.Notifications         0.3.0
 ```
 
 A product composes only the capabilities it needs. One repository does not imply one package, one dependency chain, or one CI blast radius.
@@ -116,15 +116,46 @@ Automatic redirects and proxy use are disabled by the default client factory.
 
 ## Updater capability
 
-`BKE.Updater` is a product-neutral secured update capability contract package. It defines the consumer-facing request/result boundary without giving products signing keys, trust stores, arbitrary install roots, privileged helper selection, or caller-selected trusted download authority.
+`BKE.Updater` is a product-neutral secured update-check capability contract package.
 
-Real provider/transport implementation is a separate layer and is intentionally not part of the current scaffold package.
+Current hardened contract identity:
+
+```text
+CAPABILITY: bke.updates.check
+CONTRACT VERSION: 1
+```
+
+The consumer provides only product/version identity through `UpdateCheckRequest`. The contract returns invariant-safe states (`UpToDate`, `UpdateAvailable`, `Deferred`, `Failed`) and typed failure classification including provider availability, transport, protocol, malformed-response, verification, and policy failures.
+
+Checking for an update is intentionally separate from downloading or installing one. `IUpdateClient.CheckAsync` does not accept executable paths, installer paths, install roots, trusted URLs, signing keys, trust stores, privileged helper selection, entitlement authority, or update authorization authority.
+
+Real provider/transport/verification implementation is a separate adapter layer and is intentionally not part of this contract-hardening package.
 
 ## Notifications capability
 
-`BKE.Notifications` is a product-neutral software-side notification capability contract package. It does not own product UI, operating-system toast presentation, persistence, push infrastructure, or message brokers.
+`BKE.Notifications` is a product-neutral software-side notification capability contract package.
 
-Applications remain responsible for presentation while consuming the stable notification contract.
+Current hardened contract identity:
+
+```text
+CAPABILITY: bke.notifications
+CONTRACT VERSION: 1
+```
+
+The portable contract now separates:
+
+- publish acceptance/rejection/failure
+- feed retrieval
+- notification lifecycle state (`Unread`, `Read`, `Dismissed`)
+- mark-read and dismiss operations
+- unread-count queries
+- logical actions (`Id` + `Label` only)
+
+A publish request does not choose the provider-generated notification identifier or timestamp. `Source` is descriptive message metadata only; it is not authenticated producer identity. Authentication and authorization of the caller belong to the provider/adapter boundary.
+
+Notification feed behavior is part of WHAT I GIVE. Storage is not: databases, files, Redis, remote APIs, or other persistence mechanisms remain provider adapters. Product UI, operating-system toast presentation, push infrastructure, and message brokers also remain outside the portable contract.
+
+Logical actions must not carry executable paths, shell commands, arbitrary URLs, or privilege-bearing targets. The consuming application/provider maps a logical action ID such as `open-update` or `show-license` to approved behavior.
 
 ## Package references
 
@@ -134,18 +165,20 @@ Active .NET 10 licensing integrations should use:
 <PackageReference Include="BKE.Desktop.Licensing" Version="2.0.0" />
 ```
 
-The currently scaffolded reusable capabilities are:
+The current hardened reusable capability contracts are:
 
 ```xml
-<PackageReference Include="BKE.Updater" Version="0.2.0" />
-<PackageReference Include="BKE.Notifications" Version="0.2.0" />
+<PackageReference Include="BKE.Updater" Version="0.3.0" />
+<PackageReference Include="BKE.Notifications" Version="0.3.0" />
 ```
 
 ## Historical compatibility packages
 
 `BKE.Desktop.Client` 1.0.0 and `BKE.Desktop.Licensing` 1.0.0 remain immutable historical .NET 8 package artifacts. They are not republished or rewritten.
 
-The active .NET 10 successors are:
+`BKE.Updater` 0.2.0 and `BKE.Notifications` 0.2.0 remain immutable scaffold artifacts. The hardened contract successors are 0.3.0.
+
+The active .NET 10 desktop successors are:
 
 ```text
 BKE.Desktop.Client      2.0.0
