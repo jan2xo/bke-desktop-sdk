@@ -10,7 +10,7 @@ The current repository contains four independently versioned packages:
 BKE SDK
 ├── BKE.Desktop.Client        2.0.0
 ├── BKE.Desktop.Licensing     2.0.0
-├── BKE.Updater               0.3.0
+├── BKE.Updater               0.4.0
 └── BKE.Notifications         0.3.0
 ```
 
@@ -116,9 +116,9 @@ Automatic redirects and proxy use are disabled by the default client factory.
 
 ## Updater capability
 
-`BKE.Updater` is a product-neutral secured update-check capability contract package.
+`BKE.Updater` is the canonical product-facing secured update-check capability.
 
-Current hardened contract identity:
+Current contract identity:
 
 ```text
 CAPABILITY: bke.updates.check
@@ -127,9 +127,21 @@ CONTRACT VERSION: 1
 
 The consumer provides only product/version identity through `UpdateCheckRequest`. The contract returns invariant-safe states (`UpToDate`, `UpdateAvailable`, `Deferred`, `Failed`) and typed failure classification including provider availability, transport, protocol, malformed-response, verification, and policy failures.
 
-Checking for an update is intentionally separate from downloading or installing one. `IUpdateClient.CheckAsync` does not accept executable paths, installer paths, install roots, trusted URLs, signing keys, trust stores, privileged helper selection, entitlement authority, or update authorization authority.
+Starting with `BKE.Updater` 0.4.0, the package also provides the default product-to-Licensing-Agent client:
 
-Real provider/transport/verification implementation is a separate adapter layer and is intentionally not part of this contract-hardening package.
+```csharp
+using BKE.Updater;
+
+using var updates = BkeUpdaterClient.Create();
+var result = await updates.CheckAsync(
+    new UpdateCheckRequest("bke-your-product", "1.0.0"));
+```
+
+The fixed loopback protocol is private to the SDK implementation. Products do not call Licensing Agent updater routes or define transport DTOs themselves.
+
+Checking for an update remains intentionally separate from downloading or installing one. The SDK does not accept executable paths, installer paths, install roots, trusted URLs, signing keys, trust stores, privileged helper selection, entitlement authority, or update authorization authority.
+
+The Licensing Agent remains the trusted local provider and owns signed-lease resolution, trusted authority communication, signed-policy verification, trusted-key handling, download grants, content verification, and privileged update execution.
 
 ## Notifications capability
 
@@ -142,7 +154,7 @@ CAPABILITY: bke.notifications
 CONTRACT VERSION: 1
 ```
 
-The portable contract now separates:
+The portable contract separates:
 
 - publish acceptance/rejection/failure
 - feed retrieval
@@ -165,18 +177,33 @@ Active .NET 10 licensing integrations should use:
 <PackageReference Include="BKE.Desktop.Licensing" Version="2.0.0" />
 ```
 
-The current hardened reusable capability contracts are:
+Current reusable capability packages are:
 
 ```xml
-<PackageReference Include="BKE.Updater" Version="0.3.0" />
+<PackageReference Include="BKE.Updater" Version="0.4.0" />
 <PackageReference Include="BKE.Notifications" Version="0.3.0" />
+```
+
+## Per-SDK contract documentation
+
+Each active SDK has one dedicated contract guide under `docs/sdk/` describing:
+
+```text
+WHAT I NEED
+WHAT I DO
+WHAT I GIVE
+CAPABILITIES
+FAILURES
+SECURITY / PROVIDER BOUNDARY
 ```
 
 ## Historical compatibility packages
 
 `BKE.Desktop.Client` 1.0.0 and `BKE.Desktop.Licensing` 1.0.0 remain immutable historical .NET 8 package artifacts. They are not republished or rewritten.
 
-`BKE.Updater` 0.2.0 and `BKE.Notifications` 0.2.0 remain immutable scaffold artifacts. The hardened contract successors are 0.3.0.
+`BKE.Updater` 0.2.0 remains the immutable scaffold artifact. `BKE.Updater` 0.3.0 remains the immutable hardened-contract release. `BKE.Updater` 0.4.0 adds the default Licensing Agent client without changing contract v1 semantics.
+
+`BKE.Notifications` 0.2.0 remains the immutable scaffold artifact and 0.3.0 is the hardened notification contract.
 
 The active .NET 10 desktop successors are:
 
@@ -189,7 +216,7 @@ Consumer migration is performed repository-by-repository with CI evidence.
 
 ## Security boundary
 
-The Licensing Agent remains the local authority and owns activation presentation. BKE Digital Solutions remains the commercial and policy authority.
+The Licensing Agent remains the local trusted provider and owns activation presentation and updater authority-facing responsibilities. BKE Digital Solutions remains the commercial and remote policy authority.
 
 The SDK cannot select trusted keys, write leases, choose privileged helpers, choose install roots, or authorize itself. Unavailable, malformed, unsupported, denied, or failed outcomes remain fail-closed.
 
@@ -207,4 +234,4 @@ The already-distributed historical package versions retain the terms under which
 
 Active BKE SDK development targets stable .NET 10. Previous .NET 8 package releases remain immutable historical compatibility artifacts and are not republished. New active package releases are .NET 10 only. Products still targeting .NET 8 must migrate before adopting these package versions.
 
-The future `bke-runtime` executable host remains a separate project; this repository contains reusable SDK libraries and secured contracts only.
+The future `bke-runtime` executable host remains a separate project; this repository contains reusable SDK libraries and secured capability clients/contracts.
