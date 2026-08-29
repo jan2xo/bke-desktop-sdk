@@ -1,4 +1,7 @@
+using System.Threading;
+using System.Threading.Tasks;
 using BKE.Updater;
+using Xunit;
 
 namespace BKE.Updater.Tests;
 
