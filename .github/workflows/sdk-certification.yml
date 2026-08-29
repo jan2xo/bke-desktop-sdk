@@ -42,3 +42,5 @@ jobs:
           name: bke-sdk-certification
           path: artifacts/*.nupkg
           if-no-files-found: error
+
+# .NET 10 migration exact-head certification trigger
