@@ -1,6 +1,10 @@
 name: BKE SDK Certification
 
 on:
+  push:
+    paths:
+      - 'global.json'
+      - '.github/workflows/sdk-certification.yml'
   workflow_dispatch:
   release:
     types: [published]
