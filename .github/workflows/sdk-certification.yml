@@ -1,0 +1,30 @@
+name: BKE SDK Certification
+
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  certify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with: { dotnet-version: '8.0.x' }
+      - run: dotnet restore src/BKE.Updater/BKE.Updater.csproj
+      - run: dotnet restore src/BKE.Notifications/BKE.Notifications.csproj
+      - run: dotnet build src/BKE.Updater/BKE.Updater.csproj --configuration Release --no-restore
+      - run: dotnet build src/BKE.Notifications/BKE.Notifications.csproj --configuration Release --no-restore
+      - run: dotnet test tests/BKE.Updater.Tests/BKE.Updater.Tests.csproj --configuration Release
+      - run: dotnet test tests/BKE.Notifications.Tests/BKE.Notifications.Tests.csproj --configuration Release
+      - run: dotnet pack src/BKE.Updater/BKE.Updater.csproj --configuration Release --output artifacts
+      - run: dotnet pack src/BKE.Notifications/BKE.Notifications.csproj --configuration Release --output artifacts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bke-sdk-certification
+          path: artifacts/*.nupkg
+          if-no-files-found: error
