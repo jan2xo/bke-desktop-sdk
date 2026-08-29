@@ -34,10 +34,16 @@ jobs:
       - run: dotnet pack src/BKE.Desktop.Licensing/BKE.Desktop.Licensing.csproj --configuration Release --no-build --output artifacts
       - run: dotnet pack src/BKE.Updater/BKE.Updater.csproj --configuration Release --no-build --output artifacts
       - run: dotnet pack src/BKE.Notifications/BKE.Notifications.csproj --configuration Release --no-build --output artifacts
+      - name: Verify hardened capability package versions
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f artifacts/BKE.Desktop.Client.2.0.0.nupkg
+          test -f artifacts/BKE.Desktop.Licensing.2.0.0.nupkg
+          test -f artifacts/BKE.Updater.0.3.0.nupkg
+          test -f artifacts/BKE.Notifications.0.3.0.nupkg
       - uses: actions/upload-artifact@v4
         with:
           name: bke-sdk-certification
           path: artifacts/*.nupkg
           if-no-files-found: error
-
-# Exact-head certification after canonical metadata and umbrella-solution cleanup.
