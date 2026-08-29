@@ -32,26 +32,26 @@ jobs:
       LICENSING_PROJECT: src/BKE.Desktop.Licensing/BKE.Desktop.Licensing.csproj
       LEGACY_TEST_PROJECT: tests/BKE.Desktop.Client.Tests/BKE.Desktop.Client.Tests.csproj
       LICENSING_TEST_PROJECT: tests/BKE.Desktop.Licensing.Tests/BKE.Desktop.Licensing.Tests.csproj
-      PACKAGE_PATH: artifacts/BKE.Desktop.Licensing.1.0.0.nupkg
+      PACKAGE_PATH: artifacts/BKE.Desktop.Licensing.2.0.0.nupkg
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
 
-      - name: Set up .NET 8
+      - name: Set up .NET 10
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: 10.0.x
 
-      - name: Verify .NET 8 SDK selection
+      - name: Verify .NET 10 SDK selection
         shell: bash
         run: |
           set -euo pipefail
           dotnet --info
           sdk_version="$(dotnet --version)"
           case "$sdk_version" in
-            8.0.*) ;;
+            10.0.*) ;;
             *)
-              echo "::error::Expected .NET SDK 8.0.x, selected $sdk_version"
+              echo "::error::Expected .NET SDK 10.0.x, selected $sdk_version"
               exit 1
               ;;
           esac
@@ -66,10 +66,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -f src/BKE.Desktop.Client/bin/Release/net8.0/BKE.Desktop.Client.dll
-          test -f src/BKE.Desktop.Licensing/bin/Release/net8.0/BKE.Desktop.Licensing.dll
-          test -f tests/BKE.Desktop.Client.Tests/bin/Release/net8.0/BKE.Desktop.Client.Tests.dll
-          test -f tests/BKE.Desktop.Licensing.Tests/bin/Release/net8.0/BKE.Desktop.Licensing.Tests.dll
+          test -f src/BKE.Desktop.Client/bin/Release/net10.0/BKE.Desktop.Client.dll
+          test -f src/BKE.Desktop.Licensing/bin/Release/net10.0/BKE.Desktop.Licensing.dll
+          test -f tests/BKE.Desktop.Client.Tests/bin/Release/net10.0/BKE.Desktop.Client.Tests.dll
+          test -f tests/BKE.Desktop.Licensing.Tests/bin/Release/net10.0/BKE.Desktop.Licensing.Tests.dll
 
       - name: Run legacy compatibility tests
         run: |
@@ -106,12 +106,12 @@ jobs:
 
           unzip -Z1 "$PACKAGE_PATH" | grep -Fx 'README.md'
           unzip -Z1 "$PACKAGE_PATH" | grep -Fx 'LICENSE-BKE-PROPRIETARY.txt'
-          unzip -Z1 "$PACKAGE_PATH" | grep -Fx 'lib/net8.0/BKE.Desktop.Licensing.dll'
+          unzip -Z1 "$PACKAGE_PATH" | grep -Fx 'lib/net10.0/BKE.Desktop.Licensing.dll'
           unzip -Z1 "$PACKAGE_PATH" | grep -Fx 'BKE.Desktop.Licensing.nuspec'
 
           unzip -p "$PACKAGE_PATH" BKE.Desktop.Licensing.nuspec > package.nuspec
           grep -q '<id>BKE.Desktop.Licensing</id>' package.nuspec
-          grep -q '<version>1.0.0</version>' package.nuspec
+          grep -q '<version>2.0.0</version>' package.nuspec
           grep -q '<readme>README.md</readme>' package.nuspec
           grep -q '<license type="file">LICENSE-BKE-PROPRIETARY.txt</license>' package.nuspec
 
@@ -134,9 +134,9 @@ jobs:
       - name: Upload licensing package and test evidence
         uses: actions/upload-artifact@v7
         with:
-          name: BKE.Desktop.Licensing-1.0.0
+          name: BKE.Desktop.Licensing-2.0.0
           path: |
-            artifacts/BKE.Desktop.Licensing.1.0.0.nupkg
+            artifacts/BKE.Desktop.Licensing.2.0.0.nupkg
             test-results/legacy/legacy.trx
             test-results/licensing/licensing.trx
           if-no-files-found: error
