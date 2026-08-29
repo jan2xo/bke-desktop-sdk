@@ -1,10 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>BKE.Updater</RootNamespace>
     <AssemblyName>BKE.Updater</AssemblyName>
     <PackageId>BKE.Updater</PackageId>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
     <PackageVersion>0.1.0</PackageVersion>
     <Authors>BKE Digital Solutions</Authors>
     <Description>Product-neutral secured update capability contracts.</Description>
