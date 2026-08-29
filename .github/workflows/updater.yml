@@ -5,6 +5,7 @@ on:
     paths:
       - 'src/BKE.Updater/**'
       - 'tests/BKE.Updater.Tests/**'
+      - 'docs/sdk/BKE.Updater.md'
       - 'Directory.Build.props'
       - 'global.json'
       - '.github/workflows/updater.yml'
@@ -12,6 +13,7 @@ on:
     paths:
       - 'src/BKE.Updater/**'
       - 'tests/BKE.Updater.Tests/**'
+      - 'docs/sdk/BKE.Updater.md'
       - 'Directory.Build.props'
       - 'global.json'
       - '.github/workflows/updater.yml'
@@ -33,6 +35,6 @@ jobs:
       - run: dotnet pack src/BKE.Updater/BKE.Updater.csproj --configuration Release --output artifacts
       - uses: actions/upload-artifact@v4
         with:
-          name: BKE.Updater-0.3.0
-          path: artifacts/BKE.Updater.0.3.0.nupkg
+          name: BKE.Updater-0.4.0
+          path: artifacts/BKE.Updater.0.4.0.nupkg
           if-no-files-found: error

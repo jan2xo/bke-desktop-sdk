@@ -2,9 +2,11 @@
 
 ## Purpose
 
-`BKE.Updater` is the product-neutral update capability contract for BKE software.
+`BKE.Updater` is the canonical product-facing update-check capability for BKE software.
 
-It defines what a product asks for and what an update provider returns. It does **not** implement the trusted updater authority, installer, verifier, or privileged executor.
+It defines what a product asks for, what result it receives, and the typed failure vocabulary. Starting with package **0.4.0**, it also ships the default secured client that talks to the machine-local BKE Licensing Agent.
+
+The Licensing Agent remains the trusted provider/authority boundary. `BKE.Updater` does not become the updater authority, installer, verifier, or privileged executor.
 
 Current package source targets **.NET 10**.
 
@@ -27,18 +29,16 @@ UpdateCapability.ContractVersion
 ```text
 PRODUCT
   ↓
-IUpdateClient
+BKE.Updater
   ↓
-BKE.Updater contract
+BkeUpdaterClient / IUpdateClient
   ↓
-PROVIDER ADAPTER
+BKE Licensing Agent
   ↓
 TRUSTED UPDATE AUTHORITY
 ```
 
-A product depends on `IUpdateClient`, not on a specific updater executable or remote service.
-
-The provider behind that interface may change without changing the product-facing contract.
+A product depends on the SDK capability, not on Agent routes, updater executables, remote services, signed policies, download grants, or installer internals.
 
 ## WHAT I NEED
 
@@ -48,17 +48,21 @@ An update check needs an `UpdateCheckRequest` containing:
 - `CurrentVersion` — version currently running
 - optional `RequestedVersion` — an explicitly requested target version
 
-The consumer also needs an implementation of:
+Normal BKE desktop consumers create the default client with:
+
+```csharp
+using var updates = BkeUpdaterClient.Create();
+```
+
+For composition/testing, consumers may depend on the portable interface:
 
 ```csharp
 IUpdateClient
 ```
 
-The package itself intentionally contains only the portable contract and does not choose the provider.
-
 ## WHAT I DO
 
-The contract defines one capability operation:
+The public capability operation is:
 
 ```csharp
 Task<UpdateCheckResult> CheckAsync(
@@ -66,15 +70,22 @@ Task<UpdateCheckResult> CheckAsync(
     CancellationToken cancellationToken = default);
 ```
 
-A conforming provider must:
+`BkeUpdaterClient` performs only product-to-provider integration:
 
-1. accept the typed request
-2. resolve update availability using its trusted implementation
-3. validate/verify whatever authority data its implementation requires
-4. map the result into the invariant-safe SDK result types
-5. never leak authority-bearing implementation details through the product-facing result
+1. accepts the typed SDK request
+2. sends the canonical request to the fixed machine-local Licensing Agent boundary
+3. validates capability identity and contract version
+4. validates result invariants
+5. maps the Agent result into the typed SDK result
+6. preserves typed provider failures instead of collapsing them into a generic error
 
-The provider implementation may use the BKE Licensing Agent today and a different provider later while preserving the same SDK contract.
+The current fixed provider boundary is:
+
+```text
+POST http://127.0.0.1:43873/v1/updates/check
+```
+
+The default transport disables proxy use and automatic redirects. The product does not choose the Agent address.
 
 ## WHAT I GIVE
 
@@ -84,7 +95,7 @@ The operation returns:
 UpdateCheckResult
 ```
 
-### Successful/normal states
+### States
 
 `UpdateCheckStatus`:
 
@@ -119,11 +130,20 @@ Result invariants:
 - `PolicyDenied`
 - `Unknown`
 
-This distinction is intentional. A product can react differently to a temporary provider outage, a transport problem, a malformed authority response, or a verification/policy failure.
+These are boundary-specific on purpose:
+
+- `ProviderUnavailable` — the local Licensing Agent cannot be reached or does not respond
+- `TransportFailure` — the trusted provider reports a transport failure reaching its authority
+- `ProtocolFailure` — provider/SDK contract identity or protocol is incompatible
+- `MalformedResponse` — response shape or state invariants are invalid
+- `VerificationFailure` — the trusted provider could not verify authority data
+- `PolicyDenied` — trusted update policy denied the check
+
+Products should react to the typed result rather than inspect provider-specific strings.
 
 ## Capabilities
 
-Current contract capability:
+Current capability:
 
 ```text
 bke.updates.check/v1
@@ -143,9 +163,11 @@ It can report:
 - update known but deferred
 - typed failure
 
-## What this SDK does NOT accept
+Checking is intentionally separate from downloading or installing.
 
-The product-facing request intentionally does not accept:
+## Security boundary
+
+The product-facing request does not accept:
 
 - signing keys
 - trust stores
@@ -157,27 +179,70 @@ The product-facing request intentionally does not accept:
 - update signing authority
 - entitlement authority
 - policy signing authority
+- caller-selected Agent endpoint
 
-Those belong to the provider/authority side of the boundary.
+The SDK result does not expose:
+
+- signed leases
+- signed update policies
+- download grants
+- trusted-key material
+- privileged execution controls
+- provider storage
+
+Those stay inside the Licensing Agent / trusted authority boundary.
 
 ## What this SDK does NOT do
 
-`BKE.Updater` itself is not:
+`BKE.Updater` is not:
 
 - the updater authority
 - an installer
 - a package downloader
-- a signature verifier implementation
+- the signed-policy verifier
+- the trusted-key store
 - a privileged executor
 - a background service
 
-It is the stable product-facing capability contract those implementations conform to.
+`BkeUpdaterClient` is only the default product-to-Agent adapter implementing the canonical SDK contract.
 
-## Minimal consumer usage
+## Minimal usage
 
 ```csharp
 using BKE.Updater;
 
+using var updates = BkeUpdaterClient.Create();
+
+var result = await updates.CheckAsync(
+    new UpdateCheckRequest(
+        productId: "bke-render-dock",
+        currentVersion: "1.0.1"));
+
+switch (result.Status)
+{
+    case UpdateCheckStatus.UpToDate:
+        break;
+
+    case UpdateCheckStatus.UpdateAvailable:
+        ShowUpdateAvailable(result.AvailableVersion!);
+        break;
+
+    case UpdateCheckStatus.Deferred:
+        break;
+
+    case UpdateCheckStatus.Failed:
+        LogUpdateFailure(result.Error!);
+        break;
+}
+```
+
+The product does not call `/v1/updates/check` itself and does not define its own updater DTOs.
+
+## Composition usage
+
+Code that wants testability or provider substitution can depend on the interface:
+
+```csharp
 public sealed class UpdateCoordinator
 {
     private readonly IUpdateClient updates;
@@ -186,34 +251,31 @@ public sealed class UpdateCoordinator
     {
         this.updates = updates;
     }
-
-    public async Task<UpdateCheckResult> CheckAsync(
-        string productId,
-        string currentVersion,
-        CancellationToken cancellationToken = default)
-    {
-        var request = new UpdateCheckRequest(productId, currentVersion);
-        return await updates.CheckAsync(request, cancellationToken);
-    }
 }
 ```
 
-The product does not need to know whether `IUpdateClient` is backed by the Licensing Agent, a future BKE runtime, or another certified provider.
+The default production composition is:
+
+```csharp
+IUpdateClient updates = BkeUpdaterClient.Create();
+```
+
+A future provider can implement the same interface without changing product-facing update semantics.
 
 ## Provider responsibility
 
-A provider implementation owns implementation-specific work such as:
+The Licensing Agent / authority side owns implementation-specific trusted work such as:
 
-- transport
-- provider discovery
-- trusted authority endpoint selection
-- signed policy verification
+- remote authority endpoint selection
+- signed lease resolution
+- signed update policy verification
 - trusted-key handling
+- policy revision enforcement
 - download grant handling
 - package/content verification
 - privileged update execution
 
-Those responsibilities stay behind the SDK boundary.
+Those responsibilities remain behind the SDK boundary.
 
 ## Consumer responsibility
 
@@ -221,8 +283,8 @@ The consuming product owns:
 
 - its `ProductId`
 - its current version
-- when to ask for an update check
-- product UI for update state
-- policy for what to do with `UpToDate`, `UpdateAvailable`, `Deferred`, or `Failed`
+- when to request a check
+- product UI for `UpToDate`, `UpdateAvailable`, `Deferred`, or `Failed`
+- its product-specific decision about how to present an available update
 
-The product should not bypass `IUpdateClient` to directly depend on provider internals.
+The product must not bypass `BKE.Updater` to call Licensing Agent updater routes directly.
