@@ -47,3 +47,5 @@ jobs:
           name: bke-sdk-certification
           path: artifacts/*.nupkg
           if-no-files-found: error
+
+# Final exact-head certification trigger after contract-hardening cleanup.
