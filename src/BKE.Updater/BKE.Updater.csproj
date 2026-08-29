@@ -4,10 +4,11 @@
     <RootNamespace>BKE.Updater</RootNamespace>
     <AssemblyName>BKE.Updater</AssemblyName>
     <PackageId>BKE.Updater</PackageId>
-    <Version>0.2.0</Version>
-    <PackageVersion>0.2.0</PackageVersion>
+    <Version>0.3.0</Version>
+    <PackageVersion>0.3.0</PackageVersion>
     <Authors>BKE Digital Solutions</Authors>
     <Description>Product-neutral secured update capability contracts.</Description>
+    <PackageReleaseNotes>Hardens the update-check contract with invariant-safe results, typed failure classification, stable capability identity, and no consumer authority-bearing inputs.</PackageReleaseNotes>
     <RepositoryUrl>https://github.com/jan2xo/bke-sdk</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageLicenseFile>LICENSE-BKE-PROPRIETARY.txt</PackageLicenseFile>
